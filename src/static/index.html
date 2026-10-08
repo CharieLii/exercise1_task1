@@ -345,7 +345,7 @@
                     <h2 class="editor-title" id="editorTitle">Select a note to edit</h2>
                     <div class="editor-actions" id="editorActions" style="display: none;">
                         <button class="btn btn-save" id="saveBtn">💾 Save</button>
-                        <button class="btn btn-delete" id="deleteBtn">🗑️ Delete</button>
+                        <button class="btn btn-delete" id="deleteBtn" style="display: none;">🗑️ Delete</button>
                     </div>
                 </div>
 
@@ -476,10 +476,17 @@
                 });
             }
 
+            updateDeleteButtonVisibility() {
+                const deleteBtn = document.getElementById('deleteBtn');
+                const hasBeenSaved = this.currentNote && this.currentNote.id;
+                deleteBtn.style.display = hasBeenSaved ? 'inline-block' : 'none';
+            }
+
             showEditor() {
                 document.getElementById('emptyState').style.display = 'none';
                 document.getElementById('editorForm').style.display = 'block';
                 document.getElementById('editorActions').style.display = 'flex';
+                this.updateDeleteButtonVisibility();
             }
 
             hideEditor() {
@@ -488,6 +495,7 @@
                 document.getElementById('editorActions').style.display = 'none';
                 document.getElementById('editorTitle').textContent = 'Select a note to edit';
                 this.currentNote = null;
+                this.updateDeleteButtonVisibility();
             }
 
             async saveNote(isAutoSave = false) {
@@ -541,6 +549,7 @@
                     
                     this.renderNotesList();
                     document.getElementById('editorTitle').textContent = savedNote.title;
+                    this.updateDeleteButtonVisibility();
                     
                     if (!isAutoSave) {
                         this.showMessage('Note saved successfully!', 'success');
