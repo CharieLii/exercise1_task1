@@ -6,334 +6,226 @@
     <title>NoteTaker - Your Personal Note Manager</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --blue: #2563eb;
+            --blue-dark: #1d4ed8;
+            --ink: #172b4d;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --surface: #f8fafc;
         }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(180deg, #edf4ff 0, #f6f8fc 320px);
             min-height: 100vh;
-            color: #333;
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
         }
-
+        button, input, select, textarea { font: inherit; }
         .container {
-            max-width: 1200px;
+            max-width: 1240px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 40px 28px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
-
         .header {
-            text-align: center;
-            margin-bottom: 30px;
-            color: white;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #dbe5f3;
         }
-
         .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 28px;
+            font-weight: 750;
+            letter-spacing: -1px;
         }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
+        .brand-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            color: white;
+            background: var(--blue);
+            box-shadow: 0 4px 12px #2563eb25;
         }
-
+        .brand-mark svg { width: 23px; height: 23px; }
+        .header p { margin: 10px 0 0 52px; font-size: 14px; color: var(--muted); }
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 30px;
+            grid-template-columns: minmax(260px, 1fr) minmax(0, 2.2fr);
+            gap: 24px;
             flex: 1;
+            align-content: start;
+            align-items: stretch;
         }
-
-        .sidebar {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-            height: fit-content;
+        .sidebar, .note-editor {
+            min-width: 0;
+            background: white;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: 0 6px 24px #172b4d06;
         }
-
-        .note-editor {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
+        .sidebar { padding: 20px; }
+        .note-editor { padding: 28px; display: flex; flex-direction: column; }
+        .sidebar-heading {
+            margin-bottom: 18px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            text-transform: uppercase;
         }
-
         .search-box {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
-            border-radius: 10px;
+            padding: 11px 13px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: var(--surface);
             font-size: 14px;
-            margin-bottom: 20px;
-            transition: border-color 0.3s ease;
+            margin-bottom: 12px;
         }
-
-        .search-box:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
         .new-note-btn {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 11px;
+            background: var(--blue);
             color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 20px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .new-note-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .notes-list {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        .note-item {
-            padding: 15px;
-            border: 2px solid transparent;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-        }
-
-        .note-item:hover {
-            border-color: #667eea;
-            transform: translateX(5px);
-        }
-
-        .note-item.active {
-            border-color: #667eea;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-        }
-
-        .note-title {
-            font-weight: 600;
-            font-size: 16px;
-            margin-bottom: 5px;
-            color: #333;
-        }
-
-        .note-preview {
+            border: 1px solid var(--blue);
+            border-radius: 9px;
             font-size: 14px;
-            color: #666;
-            line-height: 1.4;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 22px;
+        }
+        .new-note-btn:hover { background: var(--blue-dark); }
+        .notes-list { max-height: 500px; overflow-y: auto; overflow-x: hidden; }
+        .note-item {
+            padding: 14px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color .15s, background .15s;
+            background: white;
+            overflow-wrap: anywhere;
+        }
+        .note-item:hover { background: var(--surface); border-color: var(--line); }
+        .note-item.active { background: #eff6ff; border-color: #bfdbfe; box-shadow: inset 3px 0 0 var(--blue); }
+        .note-title { font-weight: 650; font-size: 14px; margin-bottom: 6px; }
+        .note-item.active .note-title { color: var(--blue-dark); }
+        .note-preview {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.65;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-
-        .note-date {
-            font-size: 12px;
-            color: #999;
-            margin-top: 5px;
-        }
-
+        .note-date { font-size: 11px; color: #718096; margin-top: 10px; }
         .editor-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+            flex-direction: column;
+            align-items: stretch;
+            margin-bottom: 24px;
+            gap: 18px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
         }
-
-        .editor-title {
-            font-size: 1.5rem;
-            color: #333;
+        .editor-title { font-size: 24px; font-weight: 700; letter-spacing: -.6px; overflow-wrap: anywhere; }
+        .editor-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .language-select {
+            padding: 9px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            color: var(--ink);
+            font-size: 13px;
+            min-height: 38px;
         }
-
-        .editor-actions {
-            display: flex;
-            gap: 10px;
-        }
-
         .btn {
-            padding: 8px 16px;
-            border: none;
+            padding: 9px 16px;
+            border: 1px solid transparent;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .btn-save {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-save:hover {
-            background: #218838;
-            transform: translateY(-1px);
-        }
-
-        .btn-delete {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-delete:hover {
-            background: #c82333;
-            transform: translateY(-1px);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
+            font-size: 13px;
             font-weight: 600;
-            color: #333;
+            min-height: 38px;
+            transition: background .15s, border-color .15s;
         }
-
-        .form-input {
+        .btn-save { background: var(--blue); color: white; }
+        .btn-save:hover { background: var(--blue-dark); }
+        .btn-translate { background: #eff6ff; color: var(--blue-dark); border-color: #dbeafe; }
+        .btn-translate:hover { background: #dbeafe; }
+        .btn-delete { background: white; color: #b42318; border-color: var(--line); margin-left: auto; }
+        .btn-delete:hover { background: #fff1f2; border-color: #fecdd3; }
+        button:disabled { opacity: .5; cursor: wait; }
+        .form-group { margin-bottom: 20px; }
+        #editorForm { flex: 1; flex-direction: column; min-height: 0; }
+        #editorForm .form-group:last-child { display: flex; flex-direction: column; flex: 1; margin-bottom: 0; }
+        .form-label { display: block; margin-bottom: 9px; font-size: 12px; font-weight: 650; color: var(--muted); }
+        .form-input, .form-textarea {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            font-size: 15px;
+            color: var(--ink);
+            background: #fcfdff;
+            transition: border-color .15s, box-shadow .15s;
         }
-
-        .form-input:focus {
+        .form-textarea { min-height: 150px; height: 150px; flex: 1; resize: vertical; line-height: 1.8; }
+        input::placeholder, textarea::placeholder { color: #8492a6; }
+        .search-box:focus, .form-input:focus, .form-textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #93b4fb;
+            box-shadow: 0 0 0 3px #2563eb12;
+            background: white;
         }
-
-        .form-textarea {
-            width: 100%;
-            min-height: 300px;
-            padding: 15px;
-            border: 2px solid #e1e5e9;
-            border-radius: 10px;
-            font-size: 16px;
-            font-family: inherit;
-            resize: vertical;
-            transition: border-color 0.3s ease;
-            line-height: 1.6;
-        }
-
-        .form-textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #666;
-        }
-
-        .empty-state h3 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            font-size: 1rem;
-            opacity: 0.8;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #f5c6cb;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #c3e6cb;
-        }
-
-        /* Responsive Design */
+        button:focus-visible, select:focus-visible, .note-item:focus-visible { outline: 3px solid #93b4fb; outline-offset: 3px; }
+        .empty-state { text-align: center; padding: 64px 20px; color: var(--muted); }
+        .empty-state h3 { font-size: 22px; color: var(--ink); margin-bottom: 12px; letter-spacing: -.5px; }
+        .empty-state p { font-size: 14px; line-height: 1.7; }
+        .loading { padding: 12px; color: var(--muted); font-size: 13px; }
+        .error, .success { padding: 12px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; line-height: 1.6; }
+        .error { background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; }
+        .success { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .notes-list::-webkit-scrollbar { width: 5px; }
+        .notes-list::-webkit-scrollbar-track { background: transparent; }
+        .notes-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
+        .notes-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .container {
-                padding: 15px;
-            }
-            
-            .sidebar, .note-editor {
-                padding: 20px;
-            }
+            .container { padding: 24px 16px; }
+            .header { margin-bottom: 24px; }
+            .header h1 { font-size: 25px; }
+            .header p { margin-left: 0; }
+            .main-content { grid-template-columns: 1fr; gap: 18px; }
+            .sidebar, .note-editor { padding: 20px; }
+            .notes-list { max-height: 280px; }
+            .editor-title { font-size: 22px; }
+            .btn-delete { margin-left: 0; }
         }
-
-        /* Custom Scrollbar */
-        .notes-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .notes-list::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-
-        .notes-list::-webkit-scrollbar-thumb {
-            background: #667eea;
-            border-radius: 3px;
-        }
-
-        .notes-list::-webkit-scrollbar-thumb:hover {
-            background: #5a6fd8;
-        }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>📝 NoteTaker</h1>
+            <h1><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v5h4M9 12h6M9 16h4"/></svg></span>NoteTaker</h1>
             <p>Organize your thoughts, capture your ideas</p>
         </div>
 
         <div class="main-content">
             <div class="sidebar">
-                <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search notes...">
-                <button class="new-note-btn" id="newNoteBtn">✨ New Note</button>
+                <h2 class="sidebar-heading">Your library</h2>
+                <input type="text" class="search-box" id="searchBox" placeholder="Search notes..." aria-label="Search notes">
+                <button class="new-note-btn" id="newNoteBtn">+ New Note</button>
                 
                 <div class="notes-list" id="notesList">
                     <div class="loading">Loading notes...</div>
@@ -344,12 +236,23 @@
                 <div class="editor-header">
                     <h2 class="editor-title" id="editorTitle">Select a note to edit</h2>
                     <div class="editor-actions" id="editorActions" style="display: none;">
-                        <button class="btn btn-save" id="saveBtn">💾 Save</button>
-                        <button class="btn btn-delete" id="deleteBtn" style="display: none;">🗑️ Delete</button>
+                        <select class="language-select" id="targetLanguage" aria-label="Translation target language">
+                            <option value="Simplified Chinese">简体中文</option>
+                            <option value="Traditional Chinese">繁體中文</option>
+                            <option value="English">English</option>
+                            <option value="Japanese">日本語</option>
+                            <option value="Korean">한국어</option>
+                            <option value="French">Français</option>
+                            <option value="Spanish">Español</option>
+                            <option value="German">Deutsch</option>
+                        </select>
+                        <button class="btn btn-translate" id="translateBtn">Translate</button>
+                        <button class="btn btn-save" id="saveBtn">Save</button>
+                        <button class="btn btn-delete" id="deleteBtn" style="display: none;">Delete</button>
                     </div>
                 </div>
 
-                <div id="messageArea"></div>
+                <div id="messageArea" role="status" aria-live="polite"></div>
 
                 <div id="editorForm" style="display: none;">
                     <div class="form-group">
@@ -377,6 +280,10 @@
                 this.notes = [];
                 this.currentNote = null;
                 this.isLoading = false;
+                this.isTranslating = false;
+                this.isSaving = false;
+                this.isDeleting = false;
+                this.saveTimeout = null;
                 this.init();
             }
 
@@ -389,13 +296,13 @@
                 document.getElementById('newNoteBtn').addEventListener('click', () => this.createNewNote());
                 document.getElementById('saveBtn').addEventListener('click', () => this.saveNote());
                 document.getElementById('deleteBtn').addEventListener('click', () => this.deleteNote());
+                document.getElementById('translateBtn').addEventListener('click', () => this.translateNote());
                 document.getElementById('searchBox').addEventListener('input', (e) => this.searchNotes(e.target.value));
                 
                 // Auto-save on content change (debounced)
-                let saveTimeout;
                 const autoSave = () => {
-                    clearTimeout(saveTimeout);
-                    saveTimeout = setTimeout(() => {
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = setTimeout(() => {
                         if (this.currentNote && this.currentNote.id) {
                             this.saveNote(true);
                         }
@@ -443,6 +350,7 @@
             }
 
             async selectNote(noteId) {
+                if (this.isTranslating) return;
                 const note = this.notes.find(n => n.id === noteId);
                 if (!note) return;
 
@@ -456,6 +364,7 @@
             }
 
             createNewNote() {
+                if (this.isTranslating) return;
                 this.currentNote = {
                     id: null,
                     title: '',
@@ -484,7 +393,7 @@
 
             showEditor() {
                 document.getElementById('emptyState').style.display = 'none';
-                document.getElementById('editorForm').style.display = 'block';
+                document.getElementById('editorForm').style.display = 'flex';
                 document.getElementById('editorActions').style.display = 'flex';
                 this.updateDeleteButtonVisibility();
             }
@@ -499,7 +408,7 @@
             }
 
             async saveNote(isAutoSave = false) {
-                if (!this.currentNote) return;
+                if (!this.currentNote || this.isTranslating || this.isSaving) return;
 
                 const title = document.getElementById('noteTitle').value.trim();
                 const content = document.getElementById('noteContent').value.trim();
@@ -511,6 +420,7 @@
                     return;
                 }
 
+                this.isSaving = true;
                 try {
                     const noteData = {
                         title: title || 'Untitled',
@@ -556,14 +466,62 @@
                     }
                 } catch (error) {
                     this.showMessage(`Error saving note: ${error.message}`, 'error');
+                } finally {
+                    this.isSaving = false;
+                }
+            }
+
+            async translateNote() {
+                if (!this.currentNote || this.isTranslating) return;
+                if (this.isSaving || this.isDeleting) {
+                    this.showMessage('Please wait for the current note operation to finish.', 'loading');
+                    return;
+                }
+                const title = document.getElementById('noteTitle').value;
+                const content = document.getElementById('noteContent').value;
+                if (!title.trim() && !content.trim()) {
+                    this.showMessage('Please enter a title or content to translate.', 'error');
+                    return;
+                }
+                clearTimeout(this.saveTimeout);
+                this.isTranslating = true;
+                const controls = ['translateBtn', 'targetLanguage', 'saveBtn', 'deleteBtn',
+                                  'newNoteBtn', 'noteTitle', 'noteContent'];
+                controls.forEach(id => document.getElementById(id).disabled = true);
+                document.getElementById('translateBtn').textContent = 'Translating…';
+                this.showMessage('Translating your note…', 'loading');
+                try {
+                    const response = await fetch('/api/notes/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({title, content,
+                            target_language: document.getElementById('targetLanguage').value})
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || 'Translation failed');
+                    if (typeof result.title !== 'string' || typeof result.content !== 'string') {
+                        throw new Error('Invalid translation response');
+                    }
+                    document.getElementById('noteTitle').value = result.title;
+                    document.getElementById('noteContent').value = result.content;
+                    document.getElementById('editorTitle').textContent = result.title || 'Untitled Note';
+                    this.showMessage('Translation ready. Click Save to keep it.', 'success');
+                } catch (error) {
+                    this.showMessage(`Error translating note: ${error.message}`, 'error');
+                } finally {
+                    this.isTranslating = false;
+                    controls.forEach(id => document.getElementById(id).disabled = false);
+                    document.getElementById('translateBtn').textContent = 'Translate';
                 }
             }
 
             async deleteNote() {
+                if (this.isTranslating) return;
                 if (!this.currentNote || !this.currentNote.id) return;
 
                 if (!confirm('Are you sure you want to delete this note?')) return;
 
+                this.isDeleting = true;
                 try {
                     const response = await fetch(`/api/notes/${this.currentNote.id}`, {
                         method: 'DELETE'
@@ -578,6 +536,8 @@
                     this.showMessage('Note deleted successfully!', 'success');
                 } catch (error) {
                     this.showMessage(`Error deleting note: ${error.message}`, 'error');
+                } finally {
+                    this.isDeleting = false;
                 }
             }
 
@@ -606,7 +566,7 @@
 
             showMessage(message, type) {
                 const messageArea = document.getElementById('messageArea');
-                messageArea.innerHTML = `<div class="${type}">${message}</div>`;
+                messageArea.innerHTML = `<div class="${type}">${this.escapeHtml(message)}</div>`;
                 
                 if (type === 'success') {
                     setTimeout(() => this.hideMessage(), 3000);
@@ -646,4 +606,3 @@
     </script>
 </body>
 </html>
-
