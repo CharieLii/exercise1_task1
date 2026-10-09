@@ -23,9 +23,10 @@ def upload_note_image(note_id):
     if upload is None or not upload.filename:
         return jsonify(error='Select an image file.'), 400
     limit = current_app.config.get('MAX_IMAGE_BYTES', 5 * 1024 * 1024)
+    limit_mb = limit // (1024 * 1024)
     data = upload.stream.read(limit + 1)
     if len(data) > limit:
-        return jsonify(error='Maximum image size is 5 MB.'), 413
+        return jsonify(error=f'Maximum image size is {limit_mb} MB.'), 413
     formats = {'PNG': 'image/png', 'JPEG': 'image/jpeg',
                'GIF': 'image/gif', 'WEBP': 'image/webp', 'HEIF': 'image/jpeg'}
     filename = (secure_filename(upload.filename) or 'image')[:255]
@@ -48,7 +49,7 @@ def upload_note_image(note_id):
                     data = buffer.getvalue()
                     filename = Path(filename).stem[:250] + '.jpg'
                     if len(data) > limit:
-                        return jsonify(error='Converted image exceeds 5 MB. Please upload a smaller image.'), 413
+                        return jsonify(error=f'Converted image exceeds {limit_mb} MB. Please upload a smaller image.'), 413
                 else:
                     image.verify()
     except (UnidentifiedImageError, OSError, ValueError, SyntaxError,

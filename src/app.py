@@ -21,12 +21,15 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 
 def create_app(test_config=None):
     load_dotenv(ROOT_DIR / '.env')
-    app = Flask(__name__, static_folder=str(ROOT_DIR / 'src' / 'static'))
+    on_vercel = os.getenv('VERCEL') == '1'
+    image_limit = (4 if on_vercel else 5) * 1024 * 1024
+    static_dir = ROOT_DIR / 'public' if on_vercel else ROOT_DIR / 'src' / 'static'
+    app = Flask(__name__, static_folder=str(static_dir))
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY') or secrets.token_hex(32),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
-        MAX_IMAGE_BYTES=5 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=image_limit + 256 * 1024,
+        MAX_IMAGE_BYTES=image_limit,
     )
     if test_config and test_config.get('TESTING'):
         app.config.update(test_config)
@@ -42,9 +45,14 @@ def create_app(test_config=None):
     app.register_blueprint(user_bp, url_prefix='/api')
     app.register_blueprint(note_bp, url_prefix='/api')
 
+    @app.get('/api/config')
+    def client_config():
+        return jsonify(max_image_bytes=app.config['MAX_IMAGE_BYTES'])
+
     @app.errorhandler(413)
     def upload_too_large(error):
-        return jsonify(error='Image upload is too large. Maximum image size is 5 MB.'), 413
+        limit_mb = app.config['MAX_IMAGE_BYTES'] // (1024 * 1024)
+        return jsonify(error=f'Image upload is too large. Maximum image size is {limit_mb} MB.'), 413
 
     @app.errorhandler(SQLAlchemyError)
     def database_unavailable(error):
