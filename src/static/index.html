@@ -168,7 +168,7 @@
         button:disabled { opacity: .5; cursor: wait; }
         .form-group { margin-bottom: 20px; }
         #editorForm { flex: 1; flex-direction: column; min-height: 0; }
-        #editorForm .form-group:last-child { display: flex; flex-direction: column; flex: 1; margin-bottom: 0; }
+        #editorForm .content-group { display: flex; flex-direction: column; flex: 1; margin-bottom: 0; }
         .form-label { display: block; margin-bottom: 9px; font-size: 12px; font-weight: 650; color: var(--muted); }
         .form-input, .form-textarea {
             width: 100%;
@@ -212,6 +212,18 @@
             .btn-delete { margin-left: 0; }
         }
         @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+        .image-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+        .image-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .image-heading .form-label { margin: 0; }
+        .image-upload { font-size: 12px; font-weight: 600; color: var(--blue); }
+        #imageUpload { display: block; width: 180px; max-width: 100%; font-size: 11px; margin-top: 6px; }
+        .image-hint { color: var(--muted); font-size: 12px; margin: 12px 0; }
+        .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+        .image-card { min-width: 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+        .image-card img { display: block; width: 100%; height: 120px; object-fit: cover; background: var(--surface); }
+        .image-caption { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .image-caption span { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .image-caption button { color: #b42318; background: white; border: 1px solid var(--line); border-radius: 5px; padding: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -260,10 +272,20 @@
                         <input type="text" class="form-input" id="noteTitle" placeholder="Enter note title...">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group content-group">
                         <label class="form-label" for="noteContent">Content</label>
                         <textarea class="form-textarea" id="noteContent" placeholder="Start writing your note..."></textarea>
                     </div>
+                    <section class="image-section" aria-label="Note images">
+                        <div class="image-heading">
+                            <span class="form-label">Images</span>
+                            <label class="image-upload" for="imageUpload">Attach image
+                                <input id="imageUpload" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/heic,image/heif,.heic,.heif">
+                            </label>
+                        </div>
+                        <p class="image-hint" id="imageHint">Save this note before attaching images.</p>
+                        <div class="image-gallery" id="imageGallery"></div>
+                    </section>
                 </div>
 
                 <div class="empty-state" id="emptyState">
@@ -283,6 +305,7 @@
                 this.isTranslating = false;
                 this.isSaving = false;
                 this.isDeleting = false;
+                this.isAttachmentBusy = false;
                 this.saveTimeout = null;
                 this.init();
             }
@@ -297,6 +320,7 @@
                 document.getElementById('saveBtn').addEventListener('click', () => this.saveNote());
                 document.getElementById('deleteBtn').addEventListener('click', () => this.deleteNote());
                 document.getElementById('translateBtn').addEventListener('click', () => this.translateNote());
+                document.getElementById('imageUpload').addEventListener('change', () => this.uploadImage());
                 document.getElementById('searchBox').addEventListener('input', (e) => this.searchNotes(e.target.value));
                 
                 // Auto-save on content change (debounced)
@@ -350,7 +374,7 @@
             }
 
             async selectNote(noteId) {
-                if (this.isTranslating) return;
+                if (this.isTranslating || this.isAttachmentBusy) return;
                 const note = this.notes.find(n => n.id === noteId);
                 if (!note) return;
 
@@ -364,7 +388,7 @@
             }
 
             createNewNote() {
-                if (this.isTranslating) return;
+                if (this.isTranslating || this.isAttachmentBusy) return;
                 this.currentNote = {
                     id: null,
                     title: '',
@@ -389,6 +413,7 @@
                 const deleteBtn = document.getElementById('deleteBtn');
                 const hasBeenSaved = this.currentNote && this.currentNote.id;
                 deleteBtn.style.display = hasBeenSaved ? 'inline-block' : 'none';
+                this.renderImages();
             }
 
             showEditor() {
@@ -409,6 +434,10 @@
 
             async saveNote(isAutoSave = false) {
                 if (!this.currentNote || this.isTranslating || this.isSaving) return;
+                if (this.isAttachmentBusy) {
+                    if (isAutoSave) this.saveTimeout = setTimeout(() => this.saveNote(true), 1000);
+                    return;
+                }
 
                 const title = document.getElementById('noteTitle').value.trim();
                 const content = document.getElementById('noteContent').value.trim();
@@ -472,7 +501,7 @@
             }
 
             async translateNote() {
-                if (!this.currentNote || this.isTranslating) return;
+                if (!this.currentNote || this.isTranslating || this.isAttachmentBusy) return;
                 if (this.isSaving || this.isDeleting) {
                     this.showMessage('Please wait for the current note operation to finish.', 'loading');
                     return;
@@ -486,9 +515,10 @@
                 clearTimeout(this.saveTimeout);
                 this.isTranslating = true;
                 const controls = ['translateBtn', 'targetLanguage', 'saveBtn', 'deleteBtn',
-                                  'newNoteBtn', 'noteTitle', 'noteContent'];
+                                  'newNoteBtn', 'noteTitle', 'noteContent', 'imageUpload'];
                 controls.forEach(id => document.getElementById(id).disabled = true);
                 document.getElementById('translateBtn').textContent = 'Translating…';
+                this.renderImages();
                 this.showMessage('Translating your note…', 'loading');
                 try {
                     const response = await fetch('/api/notes/translate', {
@@ -512,11 +542,12 @@
                     this.isTranslating = false;
                     controls.forEach(id => document.getElementById(id).disabled = false);
                     document.getElementById('translateBtn').textContent = 'Translate';
+                    this.renderImages();
                 }
             }
 
             async deleteNote() {
-                if (this.isTranslating) return;
+                if (this.isTranslating || this.isAttachmentBusy) return;
                 if (!this.currentNote || !this.currentNote.id) return;
 
                 if (!confirm('Are you sure you want to delete this note?')) return;
@@ -538,6 +569,101 @@
                     this.showMessage(`Error deleting note: ${error.message}`, 'error');
                 } finally {
                     this.isDeleting = false;
+                }
+            }
+
+            renderImages() {
+                const saved = Boolean(this.currentNote && this.currentNote.id);
+                document.getElementById('imageUpload').disabled = !saved || this.isAttachmentBusy || this.isTranslating;
+                document.getElementById('imageHint').textContent = saved
+                    ? 'PNG, JPEG, GIF, WebP or HEIC/HEIF · Up to 5 MB per image'
+                    : 'Save this note before attaching images.';
+                const gallery = document.getElementById('imageGallery');
+                gallery.innerHTML = '';
+                for (const image of (this.currentNote?.images || [])) {
+                    const card = document.createElement('div');
+                    card.className = 'image-card';
+                    const link = document.createElement('a');
+                    link.href = `/api/notes/${this.currentNote.id}/images/${image.id}`;
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                    const preview = document.createElement('img');
+                    preview.src = link.href;
+                    preview.alt = image.filename;
+                    preview.loading = 'lazy';
+                    link.appendChild(preview);
+                    const caption = document.createElement('div');
+                    caption.className = 'image-caption';
+                    const name = document.createElement('span');
+                    name.textContent = image.filename;
+                    name.title = image.filename;
+                    const remove = document.createElement('button');
+                    remove.textContent = 'Remove image';
+                    remove.disabled = this.isAttachmentBusy || this.isTranslating;
+                    remove.addEventListener('click', () => this.removeImage(image.id));
+                    caption.append(name, remove);
+                    card.append(link, caption);
+                    gallery.appendChild(card);
+                }
+            }
+
+            setAttachmentBusy(busy) {
+                this.isAttachmentBusy = busy;
+                for (const id of ['newNoteBtn', 'saveBtn', 'deleteBtn', 'translateBtn',
+                                  'targetLanguage', 'noteTitle', 'noteContent']) {
+                    document.getElementById(id).disabled = busy;
+                }
+                this.renderImages();
+            }
+
+            async uploadImage() {
+                const input = document.getElementById('imageUpload');
+                const file = input.files[0];
+                if (!file || !this.currentNote?.id) return;
+                if (this.isSaving || this.isDeleting || this.isTranslating || this.isAttachmentBusy) {
+                    input.value = '';
+                    this.showMessage('Please wait for the current operation to finish.', 'loading');
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    input.value = '';
+                    this.showMessage('Maximum image size is 5 MB.', 'error');
+                    return;
+                }
+                this.setAttachmentBusy(true);
+                this.showMessage('Uploading image…', 'loading');
+                try {
+                    const body = new FormData();
+                    body.append('image', file);
+                    const response = await fetch(`/api/notes/${this.currentNote.id}/images`, {method: 'POST', body});
+                    const image = await response.json();
+                    if (!response.ok) throw new Error(image.error || 'Image upload failed');
+                    this.currentNote.images = [...(this.currentNote.images || []), image];
+                    this.showMessage('Image attached successfully.', 'success');
+                } catch (error) {
+                    this.showMessage(error.message, 'error');
+                } finally {
+                    input.value = '';
+                    this.setAttachmentBusy(false);
+                }
+            }
+
+            async removeImage(imageId) {
+                if (!this.currentNote?.id || this.isAttachmentBusy || this.isTranslating || this.isSaving || this.isDeleting) return;
+                if (!confirm('Remove this image from the note?')) return;
+                this.setAttachmentBusy(true);
+                try {
+                    const response = await fetch(`/api/notes/${this.currentNote.id}/images/${imageId}`, {method: 'DELETE'});
+                    if (!response.ok) {
+                        const result = await response.json();
+                        throw new Error(result.error || 'Could not remove image');
+                    }
+                    this.currentNote.images = (this.currentNote.images || []).filter(image => image.id !== imageId);
+                    this.showMessage('Image removed.', 'success');
+                } catch (error) {
+                    this.showMessage(error.message, 'error');
+                } finally {
+                    this.setAttachmentBusy(false);
                 }
             }
 

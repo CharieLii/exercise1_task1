@@ -10,8 +10,9 @@ A modern, responsive web application for managing personal notes with a beautifu
 - **Search Notes**: Find notes quickly by searching titles and content
 - **Auto-save**: Notes are automatically saved as you type
 - **Responsive Design**: Works perfectly on desktop and mobile devices
-- **Modern UI**: Beautiful gradient design with smooth animations
+- **Modern UI**: Blue and white design with responsive layouts
 - **Real-time Updates**: Instant feedback and updates
+- **Image Attachments**: Upload, preview, open, and remove images stored in Neon
 
 ## 🚀 Live Demo
 
@@ -30,7 +31,7 @@ The application is deployed and accessible at: **https://3dhkilc88dkk.manus.spac
 - **Flask-CORS**: Cross-origin resource sharing support
 
 ### Database
-- **SQLite**: Lightweight, file-based database for data persistence
+- **Neon PostgreSQL**: Cloud database for notes and image bytes (`BYTEA`)
 
 ## 📁 Project Structure
 
@@ -46,9 +47,11 @@ notetaking-app/
 │   ├── static/
 │   │   ├── index.html       # Frontend application
 │   │   └── favicon.ico      # Application icon
-│   ├── database/
-│   │   └── app.db           # SQLite database file
+│   ├── app.py               # Application factory and database CLI
+│   ├── database.py          # Neon configuration and SQLite import
 │   └── main.py              # Flask application entry point
+├── database/app.db          # Legacy SQLite data retained for migration
+├── .env.example             # Configuration template (no credentials)
 ├── venv/                    # Python virtual environment
 ├── requirements.txt         # Python dependencies
 └── README.md               # This file
@@ -79,12 +82,42 @@ notetaking-app/
    pip install -r requirements.txt
    ```
 
-4. **Run the application**
+4. **Configure and initialize Neon**
+   Create a project in the [Neon Console](https://console.neon.tech). Open
+   **Connect**, select the branch/database/role, and copy the PostgreSQL
+   connection string (the pooled connection is suitable for the app).
+   Add it to your local `.env`, keeping the existing `open_router_key`:
+   ```dotenv
+   DATABASE_URL=postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
+   ```
+   Preserve any additional parameters such as `channel_binding=require` from
+   the Neon connection string. `.env` is ignored by Git; `.env.example` has
+   placeholders only. The application requires PostgreSQL and does not
+   silently fall back to SQLite when configuration is absent.
+
+   ```bash
+   python -m flask --app src.app:create_app db-check
+   python -m flask --app src.app:create_app init-db
+   ```
+
+5. **Migrate existing SQLite notes (optional, before creating new notes)**
+   Stop the old app first so no more notes are written to SQLite. Import into
+   an empty initialized Neon database:
+   ```bash
+   python -m flask --app src.app:create_app migrate-sqlite --source database/app.db
+   ```
+   This copies note/user IDs, text, and timestamps, then adjusts PostgreSQL ID
+   sequences. It preserves the source file and refuses to import into a
+   database that already has notes, users, or images. A failed import rolls
+   back inserted records. Existing SQLite images are not imported by this
+   command; the original app did not have an image table.
+
+6. **Run the application**
    ```bash
    python src/main.py
    ```
 
-5. **Access the application**
+7. **Access the application**
    - Open your browser and go to `http://localhost:5001`
 
 ## Command-line Translation
@@ -131,6 +164,41 @@ Supported languages: Simplified Chinese, Traditional Chinese, English, Japanese,
 Korean, French, Spanish, and German. Titles are limited to 200 characters and
 content to 20,000 characters per translation request. Invalid requests return
 HTTP 400; model/configuration failures return HTTP 502, both with a JSON `error`.
+
+### Image Attachments
+
+Save a note, then choose a file in **Images → Attach image**. Images are uploaded
+immediately; no additional Save click is needed. Click a thumbnail to open the
+original, or **Remove image** to delete it. Deleting a note also deletes its
+images. Text editing and translation continue to work as before.
+
+- `POST /api/notes/<id>/images`: multipart upload with a field named `image`
+- `GET /api/notes/<id>/images/<image_id>`: original image bytes with the verified MIME type
+- `DELETE /api/notes/<id>/images/<image_id>`: delete the image (HTTP 204)
+- Note JSON includes `images` metadata (ID, filename, MIME type, size, URL),
+  without image bytes or base64 in note lists.
+
+Supported formats: PNG, JPEG, GIF, WebP, HEIC/HEIF. HEIC/HEIF files (including
+files incorrectly named `.jpg`) are detected by their contents and converted
+to JPEG for browser previews. Only the primary image is retained; animation or
+additional HEIF images are not preserved. The converted file must also fit
+within 5 MB. Maximum 5 MB and 40 megapixels per image.
+The server validates actual file contents rather than trusting the filename or
+browser MIME type. Files are stored in PostgreSQL `BYTEA` via a separate
+`note_image` table; no persistent upload directory or object-storage account is
+required. This is intended for small image attachments; larger media can later
+move to a dedicated object store.
+
+Run offline database/image/translation checks with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Tests use disposable in-memory SQLite databases, not your legacy database or
+Neon. A real cloud smoke test is still needed after configuring `DATABASE_URL`:
+create a note, attach an image, restart the app, reopen the note and verify that
+the image remains available.
 
 ### Notes API
 - `GET /api/notes` - Get all notes
@@ -181,8 +249,8 @@ CREATE TABLE note (
     id INTEGER PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     content TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -191,19 +259,21 @@ CREATE TABLE note (
 The application is configured for easy deployment with:
 - CORS enabled for cross-origin requests
 - Host binding to `0.0.0.0` for external access
-- Production-ready Flask configuration
-- Persistent SQLite database
+- Configure production hosting to use a WSGI server rather than the development server
+- Persistent Neon PostgreSQL storage for notes and images
 
 ## 🔧 Configuration
 
 ### Environment Variables
-- `FLASK_ENV`: Set to `development` for debug mode
+- `DATABASE_URL`: Required Neon PostgreSQL connection string
+- `open_router_key`: OpenRouter API credential for translation
 - `SECRET_KEY`: Flask secret key for sessions
 
 ### Database Configuration
-- Database file: `src/database/app.db`
-- Automatic table creation on first run
-- SQLAlchemy ORM for database operations
+- Neon PostgreSQL via SQLAlchemy and Psycopg 3, with SSL enabled
+- Explicit table initialization via `init-db`; application startup does not create tables
+- Small connection pool with stale-connection checks
+- SQLite is only used by offline tests and the read-only legacy import
 
 ## 📱 Browser Compatibility
 
@@ -239,7 +309,7 @@ Potential improvements for future versions:
 - User authentication and multi-user support
 - Note categories and tags
 - Rich text formatting (bold, italic, lists)
-- File attachments
+- Document attachments (image attachments are already supported)
 - Export functionality (PDF, Markdown)
 - Dark/light theme toggle
 - Offline support with service workers
@@ -247,4 +317,4 @@ Potential improvements for future versions:
 
 ---
 
-**Built with ❤️ using Flask, SQLite, and modern web technologies**
+**Built with Flask, Neon PostgreSQL, and modern web technologies**
