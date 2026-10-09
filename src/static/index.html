@@ -307,11 +307,21 @@
                 this.isDeleting = false;
                 this.isAttachmentBusy = false;
                 this.saveTimeout = null;
+                this.maxImageBytes = 4 * 1024 * 1024;
                 this.init();
             }
 
             async init() {
                 this.bindEvents();
+                try {
+                    const response = await fetch('/api/config');
+                    if (response.ok) {
+                        const config = await response.json();
+                        if (Number.isInteger(config.max_image_bytes) && config.max_image_bytes > 0) {
+                            this.maxImageBytes = config.max_image_bytes;
+                        }
+                    }
+                } catch (_) { /* Use a safe upload limit if configuration is unavailable. */ }
                 await this.loadNotes();
             }
 
@@ -576,7 +586,7 @@
                 const saved = Boolean(this.currentNote && this.currentNote.id);
                 document.getElementById('imageUpload').disabled = !saved || this.isAttachmentBusy || this.isTranslating;
                 document.getElementById('imageHint').textContent = saved
-                    ? 'PNG, JPEG, GIF, WebP or HEIC/HEIF · Up to 5 MB per image'
+                    ? `PNG, JPEG, GIF, WebP or HEIC/HEIF · Up to ${this.maxImageBytes / (1024 * 1024)} MB per image`
                     : 'Save this note before attaching images.';
                 const gallery = document.getElementById('imageGallery');
                 gallery.innerHTML = '';
@@ -625,9 +635,9 @@
                     this.showMessage('Please wait for the current operation to finish.', 'loading');
                     return;
                 }
-                if (file.size > 5 * 1024 * 1024) {
+                if (file.size > this.maxImageBytes) {
                     input.value = '';
-                    this.showMessage('Maximum image size is 5 MB.', 'error');
+                    this.showMessage(`Maximum image size is ${this.maxImageBytes / (1024 * 1024)} MB.`, 'error');
                     return;
                 }
                 this.setAttachmentBusy(true);

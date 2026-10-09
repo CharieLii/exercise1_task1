@@ -254,13 +254,29 @@ CREATE TABLE note (
 );
 ```
 
-## 🚀 Deployment
+## 🚀 Deployment to Vercel
 
-The application is configured for easy deployment with:
-- CORS enabled for cross-origin requests
-- Host binding to `0.0.0.0` for external access
-- Configure production hosting to use a WSGI server rather than the development server
-- Persistent Neon PostgreSQL storage for notes and images
+The root `app.py` exports the Flask application, `.python-version` selects
+Python 3.12, and `vercel.json` configures the Flask preset and a 180-second
+function limit. The build command copies the canonical `src/static` frontend
+to `public/` for Vercel's CDN. Keep editing `src/static/index.html` locally.
+
+Import `CharieLii/exercise1_task1` into the `charielii` Vercel account. Use
+`main` as the Production Branch, root directory `.`, and the Flask framework
+preset. Configure `DATABASE_URL` and `open_router_key` as server environment
+variables; optionally set a stable `SECRET_KEY`. Do not upload `.env` or the
+legacy database. The Neon tables have already been initialized and migrated;
+no migration runs during builds or function startup.
+
+Vercel deployment uses a 4 MB image limit so multipart requests stay within
+its 4.5 MB function payload limit. The UI fetches the active limit from
+`/api/config`; local development keeps the 5 MB limit. HEIC conversion is
+subject to the same stored-file limit. Larger uploads would require a direct
+object-storage upload flow.
+
+After deployment, check the home page, `/api/notes`, a small image upload,
+and translation. The existing app has no user login or per-user ownership;
+its note and image APIs are shared by visitors to the deployment.
 
 ## 🔧 Configuration
 
