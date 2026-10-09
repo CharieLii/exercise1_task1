@@ -1,7 +1,26 @@
 from flask import Blueprint, jsonify, request
 from src.models.note import Note, db
+from translator import translate_note
 
 note_bp = Blueprint('note', __name__)
+
+
+@note_bp.route('/notes/translate', methods=['POST'])
+def translate_note_draft():
+    """Return a translated draft as JSON; saving is a separate action."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required'}), 400
+    try:
+        result = translate_note(
+            data.get('title', ''), data.get('content', ''),
+            data.get('target_language', 'Simplified Chinese'),
+        )
+        return jsonify(result)
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+    except RuntimeError as error:
+        return jsonify({'error': str(error)}), 502
 
 @note_bp.route('/notes', methods=['GET'])
 def get_notes():
@@ -73,4 +92,3 @@ def search_notes():
     ).order_by(Note.updated_at.desc()).all()
     
     return jsonify([note.to_dict() for note in notes])
-

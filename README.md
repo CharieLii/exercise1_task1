@@ -87,7 +87,50 @@ notetaking-app/
 5. **Access the application**
    - Open your browser and go to `http://localhost:5001`
 
+## Command-line Translation
+
+After installing the dependencies, set `open_router_key` in the root `.env`
+file. This file is ignored by Git. The translator uses OpenRouter's
+`deepseek/deepseek-v4-flash` model and defaults to Simplified Chinese:
+
+```bash
+python translator.py "How are you?"
+python translator.py "你好" --target-language English
+```
+
+The program prints only the translated text on success. API calls use your
+OpenRouter account credits. This standalone script can also be imported via
+`from translator import llm_generate`.
+
 ## 📡 API Endpoints
+
+### Note Translation
+
+Select a note or create a draft, choose a target language, and click **Translate**.
+The translated title and content appear in the editor. Click **Save** to persist
+them. Translation errors leave the original draft intact. Both saved notes and
+unsaved drafts are supported. Translation does not automatically save a note.
+
+The system prompt lives in `prompts/translate_prompt.md`. The backend requests
+structured JSON from OpenRouter and validates it before updating the editor.
+The API key is read on the server from `.env` (`open_router_key`).
+
+`POST /api/notes/translate` accepts:
+
+```json
+{"title": "Greeting", "content": "How are you?", "target_language": "Simplified Chinese"}
+```
+
+The JSON response has this shape:
+
+```json
+{"title": "问候", "content": "你好吗？", "target_language": "Simplified Chinese"}
+```
+
+Supported languages: Simplified Chinese, Traditional Chinese, English, Japanese,
+Korean, French, Spanish, and German. Titles are limited to 200 characters and
+content to 20,000 characters per translation request. Invalid requests return
+HTTP 400; model/configuration failures return HTTP 502, both with a JSON `error`.
 
 ### Notes API
 - `GET /api/notes` - Get all notes
@@ -205,4 +248,3 @@ Potential improvements for future versions:
 ---
 
 **Built with ❤️ using Flask, SQLite, and modern web technologies**
-
